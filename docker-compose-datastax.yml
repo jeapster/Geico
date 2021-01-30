@@ -1,0 +1,61 @@
+version: '3.7'
+services:
+
+  # DataStax Enterprise
+  dse:
+    # Specify the container name explicitly to avoid getting underscores
+    container_name: dse
+    image: datastax/dse-server:6.7.10
+    # Enable Graph - -f enabled by default
+    command: [ -g -k ]
+    ports:
+    - "9042:9042" # cassandra
+    - "8182:8182" # graph
+    - "9077:9077" # always on sql
+    environment:
+      DS_LICENSE: accept
+      HEAP_NEWSIZE: 128M
+      MAX_HEAP_SIZE: 2G
+      SPARK_SCALA_VERSION: "2.11"
+    volumes:
+    - datastax_data:/var/lib/cassandra
+    - spark_data:/var/lib/spark
+    # Allow DSE to lock memory with mlock
+    cap_add:
+    - IPC_LOCK
+    ulimits:
+      memlock: -1
+    networks:
+    - dse
+
+  # One instance of DataStax Studio
+  studio:
+    container_name: studio
+    image: datastax/dse-studio:6.7.0
+    ports:
+    # The Web UI exposed to our host
+    - "9091:9091"
+    depends_on:
+    - dse
+    environment:
+      DS_LICENSE: accept
+    volumes:
+    - datastax_studio_notebooks:/var/lib/datastax-studio
+    networks:
+    - dse
+
+volumes:
+  # will be <dir_name>_data
+  datastax_studio_notebooks:
+    driver: local
+  datastax_data:
+    driver: local
+  spark_data:
+    driver: local
+
+# the actual name will be <directory_name>_<network_name>
+# specify name explicitly to avoid underscores
+networks:
+  dse:
+    driver: bridge
+    name: sherlock
